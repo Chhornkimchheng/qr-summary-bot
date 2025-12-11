@@ -12,7 +12,7 @@ from telegram.ext import Updater, MessageHandler, Filters, CommandHandler
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
 # REPLACE these with your real IDs from /chatid
-MAIN_CHAT_ID = -1002424205110      # Payment group ID
+MAIN_CHAT_ID = -4850657873      # Payment group ID
 SUMMARY_CHAT_ID = -1003387786870   # Summary/report group ID
 
 DB_FILE = "payments.db"
@@ -272,3 +272,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
