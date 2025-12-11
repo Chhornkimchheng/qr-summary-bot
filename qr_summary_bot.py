@@ -51,6 +51,7 @@ def init_db():
             amount REAL,
             currency TEXT,
             paid_at TEXT,
+            hash_value TEXT UNIQUE,
             raw_text TEXT
         );
         """
@@ -59,10 +60,12 @@ def init_db():
     conn.close()
 
 
+
 # ---------- PARSING ----------
 AMT_PATTERN = re.compile(r"Received\s+([\d,]+(?:\.\d+)?)\s+(USD|KHR)")
 DT_PATTERN1 = re.compile(r"on\s+(\d{2}-[A-Za-z]{3}-\d{4})\s+(\d{1,2}:\d{2}[AP]M)")
 DT_PATTERN2 = re.compile(r",\s*(\d{2}-[A-Za-z]{3}-\d{4})\s+(\d{1,2}:\d{2}[AP]M)")
+HASH_PATTERN = re.compile(r"Hash\.\s*([A-Za-z0-9]+)", re.IGNORECASE)
 
 
 def parse_payment(text: str):
@@ -83,29 +86,44 @@ def parse_payment(text: str):
     except ValueError:
         return None
 
-    return {"amount": amount, "currency": currency, "paid_at": paid_at}
+    # Extract hash
+    m_hash = HASH_PATTERN.search(text)
+    hash_value = m_hash.group(1) if m_hash else None
+
+    return {
+        "amount": amount,
+        "currency": currency,
+        "paid_at": paid_at,
+        "hash_value": hash_value,
+    }
 
 
 # ---------- DB HELPERS ----------
 def save_payment(chat_id, msg_id, parsed, raw_text):
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
-    cur.execute(
-        """
-        INSERT INTO payments (chat_id, msg_id, amount, currency, paid_at, raw_text)
-        VALUES (?, ?, ?, ?, ?, ?)
-        """,
-        (
-            chat_id,
-            msg_id,
-            parsed["amount"],
-            parsed["currency"],
-            parsed["paid_at"].isoformat(),
-            raw_text,
-        ),
-    )
-    conn.commit()
-    conn.close()
+    try:
+        cur.execute(
+            """
+            INSERT INTO payments (chat_id, msg_id, amount, currency, paid_at, hash_value, raw_text)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                chat_id,
+                msg_id,
+                parsed["amount"],
+                parsed["currency"],
+                parsed["paid_at"].isoformat(),
+                parsed["hash_value"],
+                raw_text,
+            ),
+        )
+        conn.commit()
+        logger.info("Saved payment: %s", parsed)
+    except sqlite3.IntegrityError:
+        logger.info("⚠️ Duplicate transaction ignored: %s", parsed.get("hash_value"))
+    finally:
+        conn.close()
 
 
 def summarize_by_date(day: date):
@@ -302,6 +320,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
