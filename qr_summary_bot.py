@@ -14,6 +14,7 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 # REPLACE these with your real IDs from /chatid
 MAIN_CHAT_ID = -4850657873      # Payment group ID
 SUMMARY_CHAT_ID = -1003387786870   # Summary/report group ID
+ADMIN_IDS = [123456789]
 
 DB_FILE = "payments.db"
 # =====================================
@@ -244,6 +245,32 @@ def chatid(update, context):
     title = chat.title or getattr(chat, "full_name", "") or "Private chat"
     update.message.reply_text(f"Chat ID: {chat_id}\nTitle: {title}")
 
+def is_admin(update):
+    user = update.effective_user
+    return user and user.id in ADMIN_IDS
+
+
+def cmd_resetdb(update, context):
+    # Only allow admins
+    if not is_admin(update):
+        # Optional: silently ignore or send a warning
+        return
+
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        cur = conn.cursor()
+        cur.execute("DELETE FROM payments;")
+        conn.commit()
+        conn.close()
+        msg = "✅ All payment data has been cleared."
+        # Reply in summary group so you always see it there
+        context.bot.send_message(chat_id=SUMMARY_CHAT_ID, text=msg)
+    except Exception as e:
+        logger.error("Error resetting DB: %s", e)
+        context.bot.send_message(
+            chat_id=SUMMARY_CHAT_ID,
+            text="❌ Failed to reset data. Check logs."
+        )
 
 def main():
     if not BOT_TOKEN:
@@ -262,6 +289,7 @@ def main():
     dp.add_handler(CommandHandler("today", cmd_today))
     dp.add_handler(CommandHandler("day", cmd_day))
     dp.add_handler(CommandHandler("month", cmd_month))
+    dp.add_handler(CommandHandler("resetdb", cmd_resetdb))
 
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, payment_message))
 
@@ -270,6 +298,9 @@ def main():
     updater.idle()
 
 
+
+
 if __name__ == "__main__":
     main()
+
 
