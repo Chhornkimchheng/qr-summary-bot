@@ -1,1 +1,1 @@
-worker: python qr_summary_bot.py
+web: python qr_summary_bot.py
