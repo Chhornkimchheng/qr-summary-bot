@@ -165,6 +165,9 @@ def send_summary_text(context, text: str):
 def payment_message(update, context):
     msg = update.effective_message
 
+    # TEMP: log all messages to see their chat_id and content
+    logger.info(f"Got message in chat {msg.chat_id}: {msg.text!r}")
+
     # Only listen to MAIN payment group
     if msg.chat_id != MAIN_CHAT_ID:
         return
@@ -180,6 +183,8 @@ def payment_message(update, context):
             raw_text=text,
         )
         logger.info("Saved payment: %s", parsed)
+    else:
+        logger.info("Message didn't match payment pattern.")
 
 
 def cmd_today(update, context):
@@ -285,3 +290,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
