@@ -45,8 +45,6 @@ def init_db():
     cur = conn.cursor()
 
     # Drop old table (only needed once; fine for now while testing)
-    cur.execute("DROP TABLE IF EXISTS payments;")
-
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS payments (
@@ -116,6 +114,14 @@ def save_payment(chat_id, msg_id, parsed, raw_text):
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
     try:
+        # Check if this tx_id already exists
+        cur.execute("SELECT 1 FROM payments WHERE tx_id = ?", (parsed["tx_id"],))
+        exists = cur.fetchone()
+        if exists:
+            logger.info("⚠️ Duplicate transaction ignored: %s", parsed["tx_id"])
+            return
+
+        # Insert new transaction
         cur.execute(
             """
             INSERT INTO payments (chat_id, msg_id, amount, currency, paid_at, tx_id, raw_text)
@@ -133,8 +139,6 @@ def save_payment(chat_id, msg_id, parsed, raw_text):
         )
         conn.commit()
         logger.info("Saved payment: %s", parsed)
-    except sqlite3.IntegrityError:
-        logger.info("⚠️ Duplicate transaction ignored: %s", parsed.get("tx_id"))
     finally:
         conn.close()
 
@@ -334,6 +338,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
